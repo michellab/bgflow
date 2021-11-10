@@ -378,8 +378,12 @@ class RelativeInternalCoordinateTransformation(Flow):
         self._raise_warnings = raise_warnings
 
     def _forward(self, x, with_pose=True, *args, **kwargs):
+        #x is a tensor with 2 dimensions, number of frames and coordinates of all 22 atoms 
+
+        #x.shape[0] gives number of frames passed to forward
 
         n_batch = x.shape[0]
+        #x.view reshapes the tensor, n_batch = frames of x, -1 to work out how many atoms, 3 for xyz for all atoms
         x = x.view(n_batch, -1, 3)
 
         # compute bonds, angles, torsions
