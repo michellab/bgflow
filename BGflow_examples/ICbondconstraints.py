@@ -1,5 +1,8 @@
+import sys
 import bgflow as bg
 import torch
+
+from bgflow.distribution.energy.openmm import OpenMMBridge
 
 device = "cuda:1" if torch.cuda.is_available() else "cpu"
 dtype = torch.float32
@@ -13,6 +16,9 @@ dataset = mdtraj.load('BGflow_examples/obcimplicit.dcd', top='BGflow_examples/al
 #fname is file title for saving figures - not the full path
 fname = "obcimplicit_stride10_repeat2"
 coordinates = dataset.xyz
+from bgmol.datasets import Ala2TSF300
+target_energy = Ala2TSF300().get_energy_model()
+#energy_bridge = OpenMMBridge()
 
 #rigid_block indicates which atoms are described in cartesian coordinates
 #z_matrix gives an set of atom indices to describe each atom in terms of a bond (column 1), angle (column 2) and dihedral (column 3)
@@ -54,7 +60,7 @@ test_data = torch.tensor(all_data[permutation + n_train]).to(ctx)
 #defining dimensions for the prior distribution
 dim_cartesian = len(rigid_block) * 3 - 6
 
-dim_bonds = len(z_matrix) 
+dim_bonds = len(z_matrix)
 dim_angles = len(z_matrix)
 dim_torsions = len(z_matrix)
 
@@ -69,9 +75,9 @@ coordinate_transform = bg.MixedCoordinateTransformation(
 ).to(ctx)
 
 #testing coordinate transform
-bonds, angles, torsions, cartesian, dlogp = coordinate_transform.forward(training_data[:3])
-x, dlogp = coordinate_transform.forward(bonds, angles, torsions, cartesian, inverse=True)
-print(x, dlogp)
+#bonds, angles, torsions, cartesian, dlogp = coordinate_transform.forward(training_data[:3])
+#x, dlogp = coordinate_transform.forward(bonds, angles, torsions, cartesian, inverse=True)
+#print(x, dlogp)
 
 #defining the prior distribution - multidimensional Gaussian
 dim_ics = dim_bonds + dim_angles + dim_torsions + dim_cartesian
@@ -137,7 +143,7 @@ layers.append(bg.InverseFlow(coordinate_transform))
 flow = bg.SequentialFlow(layers).to(ctx)
 
 # test
-flow.forward(prior.sample(3))[0].shape
+#flow.forward(prior.sample(3))[0].shape
 
 generator = bg.BoltzmannGenerator(
     flow=flow,
@@ -156,6 +162,34 @@ nll_trainer.train(
         n_iter=20000, 
         data=training_data,
         batchsize=128,
-        n_print=1000, 
+        n_print=20, 
         w_energy=0.0
     )
+
+mixed_optimizer = torch.optim.Adam(generator.parameters(), lr=1e-4)
+mixed_trainer = bg.KLTrainer(
+    generator, 
+    optim=mixed_optimizer,
+    train_energy=True
+)
+
+mixed_trainer.train(
+    n_iter=2000, 
+    data=training_data,
+    batchsize=1000,
+    n_print=10, 
+    w_energy=0.1,
+    w_likelihood=0.9,
+    clip_forces=20.0
+    )
+
+samples = generator.sample(1000)
+
+samplestrajectory = mdtraj.Trajectory(
+            xyz=samples.cpu().detach().numpy().reshape(-1, 22, 3), 
+            topology=mdtraj.load('BGflow_examples/ala2_fromURL.pdb').topology
+)
+
+samplestrajectory.save('BGflow_examples/constrained_samples.dcd')
+
+sys.exit()
