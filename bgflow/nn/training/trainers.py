@@ -159,7 +159,7 @@ class KLTrainer(object):
                     batch = (batch,)
                 # negative log-likelihood of the batch is equal to the energy of the BG
                 nll = self.bg.energy(*batch, temperature=temperature).mean()
-                reports.append(nll)
+                reports.append(nll) 
                 # aggregate weighted gradient
                 if w_likelihood > 0:
                     l = w_likelihood / (w_likelihood + w_energy)

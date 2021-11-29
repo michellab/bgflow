@@ -59,15 +59,17 @@ def decompose_z_matrix(z_matrix, fixed):
     given = np.sort(fixed)  # atoms that were already visited
 
     # filter out conditioned variables
-    non_given = ~np.isin(z_matrix[:, 0], given)
+    non_given = ~np.isin(z_matrix[:, 0], given)#
     z_matrix = z_matrix[non_given]
-    # prepend the torsion index to each torsion in the z matrix
+    
+    # prepend the row index to each row in the z matrix
     z_matrix = np.concatenate([np.arange(len(z_matrix))[:, None], z_matrix], axis=1)
 
     order = []  # torsion indices
     while len(z_matrix) > 0:
 
         can_be_placed_in_this_stage = np.all(np.isin(z_matrix[:, 2:], given), axis=-1)
+        #print(can_be_placed_in_this_stage)
         # torsions, where atoms 2-4 were already visited
         if (not np.any(can_be_placed_in_this_stage)) and len(z_matrix) > 0:
             raise ValueError(
@@ -75,6 +77,7 @@ def decompose_z_matrix(z_matrix, fixed):
                 f"The following atoms were not reachable from the fixed atoms: \n{z_matrix[:,1]}"
             )
 
+        #print(z_matrix[can_be_placed_in_this_stage])
         pos = z_matrix[can_be_placed_in_this_stage, 0]
         atom = z_matrix[can_be_placed_in_this_stage, 1]
 
@@ -84,11 +87,13 @@ def decompose_z_matrix(z_matrix, fixed):
         blocks.append(z_matrix[can_be_placed_in_this_stage][:, 1:])
         given = np.union1d(given, atom)
         z_matrix = z_matrix[~can_be_placed_in_this_stage]
+        #print('after tilde',z_matrix)
 
     index2atom = np.concatenate(atoms)
     atom2index = np.argsort(index2atom)
     index2order = np.concatenate(order)
-    return blocks, index2atom, atom2index, index2order
+    order2index = np.argsort(index2order)
+    return blocks, index2atom, atom2index, index2order, order2index
 
 
 def slice_initial_atoms(z_matrix):
@@ -365,6 +370,7 @@ class RelativeInternalCoordinateTransformation(Flow):
             self._index2atom,
             self._atom2index,
             self._index2order,
+            self._order2index
         ) = decompose_z_matrix(z_matrix, fixed_atoms)
 
         self._bond_indices = self._z_matrix[:, :2]
@@ -446,8 +452,8 @@ class RelativeInternalCoordinateTransformation(Flow):
         n_batch = x_fixed.shape[0]
         x_fixed = x_fixed.view(n_batch, -1, 3)
         n_fixed = x_fixed.shape[-2]
-        n_conditioned = bonds.shape[-1]
-        assert angles.shape[-1] == n_conditioned
+        n_conditioned = angles.shape[-1]
+        #assert angles.shape[-1] == n_conditioned
         assert torsions.shape[-1] == n_conditioned
 
         # reconstruct points; initial points are the fixed points
@@ -460,32 +466,105 @@ class RelativeInternalCoordinateTransformation(Flow):
 
         # blockwise reconstruction of points left
         current_index = n_fixed
-        for block in self._z_blocks:
+        # for block in self._z_blocks:
+        #     print('block:', block)
 
-            # map atoms from z matrix
-            # to indices in reconstruction order
-            ref = self._atom2index[block]
+        #     # map atoms from z matrix
+        #     # to indices in reconstruction order
+        #     ref = self._atom2index[block]
+        #     print('ref:', ref)
 
-            # slice three context points
-            # from the already reconstructed
-            # points using the indices
-            context = points[:, ref[:, 1:]]
-            p0 = context[:, :, 0]
-            p1 = context[:, :, 1]
-            p2 = context[:, :, 2]
+        #     # slice three context points
+        #     # from the already reconstructed
+        #     # points using the indices
+        #     context = points[:, ref[:, 1:]]
+        #     p0 = context[:, :, 0]
+        #     p1 = context[:, :, 1]
+        #     p2 = context[:, :, 2]
 
-            # obtain index of currently placed
-            # point in original z-matrix
-            idx = self._index2order[ref[:, 0] - len(self._fixed_atoms)]
+        #     # obtain index of currently placed
+        #     # point in original z-matrix
+        #     idx = self._index2order[ref[:, 0] - len(self._fixed_atoms)]
 
-            # get bonds, angles, torsions
-            # using this z-matrix index
-            b = bonds[:, idx, None]
+        #     # get bonds, angles, torsions
+        #     # using this z-matrix index
+        #     b = bonds[:, idx, None]
+        #     a = angles[:, idx, None]
+        #     t = torsions[:, idx, None]
+
+        #     # now we have three context points
+        #     # and correct ic values to reconstruct the current point
+        #     p, J = ic2xyz_deriv(
+        #         p0,
+        #         p1,
+        #         p2,
+        #         b,
+        #         a,
+        #         t,
+        #         eps=self._eps,
+        #         enforce_boundaries=self._enforce_boundaries,
+        #         raise_warnings=self._raise_warnings,
+        #     )
+
+        #     #compute jacobian
+        #     dlogp += det3x3(J).abs().log().sum(-1)[:, None]
+
+        #     points[:, current_index : current_index + p.shape[1], :] = p
+        #     current_index += p.shape[1]
+        
+        for atom in self._index2atom[len(self._fixed_atoms):]:
+            print('atom:', atom)
+            
+            atomrow = self._z_matrix[self._index2order[current_index - len(self._fixed_atoms)]]
+            print('atomrow',atomrow)
+            ref = atomrow
+            context = points[:, ref[1:]]
+            #print('context2',context2.shape)
+            p0 = context[:,:,0]
+            p1 = context[:,:,1]
+            p2 = context[:,:,2]
+            idx = self._index2order[ref[0] - len(self._fixed_atoms)]
+            
+            
+            if len(bonds) < len(self.z_matrix):
+                #list of indices for CH bonds
+                if atom in [0, 2, 3 ,11 ,12, 13, 19, 20,21]:
+                    #print('CHbond')
+                    b = torch.full((3,1), 1.09,
+                    dtype=x_fixed.dtype,
+                    device=x_fixed.device)
+                    print(b)
+                elif atom == 1:    
+                    b = bonds[:, 0, None]
+                    print(b)
+                elif atom == 4:    
+                    b = bonds[:, 1, None]
+                    print(b)
+                elif atom == 5:    
+                    b = bonds[:, 2, None]
+                    print(b)
+                elif atom == 7:    
+                    b = bonds[:, 3, None]
+                    print(b)
+                elif atom == 15:    
+                    b = bonds[:, 4, None]
+                    print(b)
+                elif atom == 16:    
+                    b = bonds[:, 5, None]
+                    print(b)
+                elif atom == 17:    
+                    b = bonds[:, 6, None]
+                    print(b)
+                elif atom == 18:    
+                    b = bonds[:, 7, None]
+                    print(b)
+                else:
+                    print('bond for atom not found')
+            else:
+                b = bonds[:, idx, None]
+
             a = angles[:, idx, None]
             t = torsions[:, idx, None]
-
-            # now we have three context points
-            # and correct ic values to reconstruct the current point
             p, J = ic2xyz_deriv(
                 p0,
                 p1,
@@ -499,17 +578,18 @@ class RelativeInternalCoordinateTransformation(Flow):
             )
 
             # compute jacobian
-            dlogp += det3x3(J).abs().log().sum(-1)[:, None]
+            dlogp += det3x3(J).abs().log()[:, None]
 
             # update list of reconstructed points
-            points[:, current_index : current_index + p.shape[1], :] = p
-            current_index += p.shape[1]
+            points[:, current_index, :] = p
+            current_index += 1
 
         # finally make sure that atoms are sorted
         # from reconstruction order to original order
         points = points[:, self._atom2index]
 
         return points.view(n_batch, -1), dlogp
+        
 
 
 class GlobalInternalCoordinateTransformation(Flow):

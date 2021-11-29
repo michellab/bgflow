@@ -225,6 +225,7 @@ class MultiContext:
         """Reinitialize the MultiContext"""
         self.terminate()
         # recreate objects
+        #print('reinitialising')
         self._task_queue = mp.Queue()
         self._result_queue = mp.Queue()
         self._workers = []
@@ -285,6 +286,8 @@ class MultiContext:
         """
         assert box_vectors is None or len(box_vectors) == len(positions), \
             "box_vectors and positions have to be the same length"
+        #print('evaluate loop')
+        #print(mp.active_children())
         if not self.is_alive():
             self._reinitialize()
 
@@ -375,8 +378,10 @@ class MultiContext:
 
             # get tasks from the task queue
             for task in iter(self._task_queue.get, None):
+                #print(self.is_alive())
                 (index, positions, box_vectors, evaluate_energy, evaluate_force,
                  evaluate_positions, evaluate_path_probability_ratio, err_handling, n_simulation_steps) = task
+                #print('start', task[0])
                 try:
                     # initialize state
                     self._openmm_context.setPositions(positions)
@@ -406,6 +411,9 @@ class MultiContext:
                 self._result_queue.put(
                     [index, energy, forces, new_positions, log_path_probability_ratio]
                 )
+                #print(self._result_queue.get()[0])
+                #print('finished', index)
+            #print('end of for loop')
 
 
 class SingleContext:

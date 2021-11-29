@@ -2,7 +2,7 @@ import sys
 import bgflow as bg
 import torch
 
-from bgflow.distribution.energy.openmm import OpenMMBridge
+#from bgflow.distribution.energy.openmm import OpenMMBridge
 
 device = "cuda:1" if torch.cuda.is_available() else "cpu"
 dtype = torch.float32
@@ -12,12 +12,12 @@ ctx = torch.zeros([], device=device, dtype=dtype)
 
 import mdtraj
 #dataset = mdtraj.load('output.dcd', top='ala2_fromURL.pdb')
-dataset = mdtraj.load('BGflow_examples/obcimplicit.dcd', top='BGflow_examples/ala2_fromURL.pdb', stride=10)
+dataset = mdtraj.load('BGflow_examples/TSFtraj.dcd', top='BGflow_examples/ala2_fromURL.pdb', stride=4)
 #fname is file title for saving figures - not the full path
-fname = "obcimplicit_stride10_repeat2"
+#fname = "obcimplicit_stride10_repeat2"
 coordinates = dataset.xyz
 from bgmol.datasets import Ala2TSF300
-target_energy = Ala2TSF300().get_energy_model()
+target_energy = Ala2TSF300().get_energy_model(n_workers=1)
 #energy_bridge = OpenMMBridge()
 
 #rigid_block indicates which atoms are described in cartesian coordinates
@@ -56,13 +56,14 @@ all_data = coordinates.reshape(-1, dimensions(dataset))
 training_data = torch.tensor(all_data[permutation]).to(ctx)
 test_data = torch.tensor(all_data[permutation + n_train]).to(ctx)
 
-
 #defining dimensions for the prior distribution
 dim_cartesian = len(rigid_block) * 3 - 6
 
-dim_bonds = len(z_matrix)
+dim_bonds = len(z_matrix) - 9
 dim_angles = len(z_matrix)
 dim_torsions = len(z_matrix)
+
+#print(torch.full((2, 3), 3.141592))
 
 #mixed coordinate transformation, rigid block undergoes PCA and all other atoms are defined as internal coords 
 coordinate_transform = bg.MixedCoordinateTransformation(
@@ -89,7 +90,8 @@ split_into_ics_flow = bg.SplitFlow(dim_bonds, dim_angles, dim_torsions, dim_cart
 
 # test
 _ics = split_into_ics_flow(prior.sample(3))[:-1]
-coordinate_transform.forward(*_ics, inverse=True)[0].shape
+x = coordinate_transform.forward(*_ics, inverse=True)[0].shape
+
 
 #defining the RealNVP normalising flow block
 class RealNVP(bg.SequentialFlow):
@@ -100,8 +102,11 @@ class RealNVP(bg.SequentialFlow):
         super().__init__(self._create_layers())
     
     def _create_layers(self):
+        
         dim_channel1 =  self.dim//2
         dim_channel2 = self.dim - dim_channel1
+        print('ch1',dim_channel1)
+        print('ch2',dim_channel2)
         split_into_2 = bg.SplitFlow(dim_channel1, dim_channel2)
         
         layers = [
@@ -117,6 +122,8 @@ class RealNVP(bg.SequentialFlow):
         return layers
         
     def _dense_net(self, dim1, dim2):
+        print('dim1',dim1)
+        print('dim2',dim2)
         return bg.DenseNet(
             [dim1, *self.hidden, dim2],
             activation=torch.nn.ReLU()
@@ -129,9 +136,10 @@ class RealNVP(bg.SequentialFlow):
         ))
     
 #testing RealNVP
-RealNVP(dim_ics, hidden=[128]).to(ctx).forward(prior.sample(3))[0].shape
+#RealNVP(dim_ics, hidden=[128]).to(ctx).forward(prior.sample(3))[0].shape
 
-#forming the whole flow: 5 NVP blocks, then split into the right dimensions and then inverse coordinate transform (ICs to cartesian)
+#forming the whole flow: 5 NVP blocks, then split into the right dimensions 
+#and then inverse coordinate transform (ICs to cartesian)
 n_realnvp_blocks = 5
 layers = []
 
@@ -143,7 +151,10 @@ layers.append(bg.InverseFlow(coordinate_transform))
 flow = bg.SequentialFlow(layers).to(ctx)
 
 # test
-#flow.forward(prior.sample(3))[0].shape
+x = flow.forward(prior.sample(3))
+print(flow.forward(x[0], inverse=True))
+
+print('test done')
 
 generator = bg.BoltzmannGenerator(
     flow=flow,
@@ -159,11 +170,11 @@ nll_trainer = bg.KLTrainer(
 )
 
 nll_trainer.train(
-        n_iter=20000, 
+        n_iter=1, 
         data=training_data,
-        batchsize=128,
-        n_print=20, 
-        w_energy=0.0
+        batchsize=10,
+        n_print=1, 
+        w_energy=None
     )
 
 mixed_optimizer = torch.optim.Adam(generator.parameters(), lr=1e-4)
@@ -174,22 +185,24 @@ mixed_trainer = bg.KLTrainer(
 )
 
 mixed_trainer.train(
-    n_iter=2000, 
+    n_iter=3, 
     data=training_data,
-    batchsize=1000,
-    n_print=10, 
+    batchsize=10,
+    n_print=1, 
     w_energy=0.1,
     w_likelihood=0.9,
     clip_forces=20.0
     )
 
-samples = generator.sample(1000)
+#torch.save(flow.state_dict(),f'TSFstride4_cmdline.pt')
+
+samples = generator.sample(10000)
 
 samplestrajectory = mdtraj.Trajectory(
             xyz=samples.cpu().detach().numpy().reshape(-1, 22, 3), 
             topology=mdtraj.load('BGflow_examples/ala2_fromURL.pdb').topology
 )
-
-samplestrajectory.save('BGflow_examples/constrained_samples.dcd')
+#print(samples)
+#samplestrajectory.save('BGflow_examples/constr_samples/newconstr_samples_TSF.dcd')
 
 sys.exit()
