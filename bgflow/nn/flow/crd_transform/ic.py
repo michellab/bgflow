@@ -4,7 +4,6 @@ from typing import Union, Optional
 
 from ..base import Flow
 from .ic_helper import (
-    det2x2,
     dist_deriv,
     angle_deriv,
     torsion_deriv,
@@ -26,7 +25,6 @@ __all__ = [
 def decompose_z_matrix(z_matrix, fixed):
     """Decompose the z-matrix into blocks to allow parallel (batched) reconstruction
     of cartesian coordinates starting from the fixed atoms.
-
     Parameters
     ----------
     z_matrix : np.ndarray
@@ -36,7 +34,6 @@ def decompose_z_matrix(z_matrix, fixed):
         The shape of the z-matrix is (n_conditioned_atoms, 4).
     fixed : np.ndarray
         Fixed atoms that are used to seed the reconstruction of Cartesian from internal coordinates.
-
     Returns
     -------
     blocks : list of np.ndarray
@@ -60,17 +57,15 @@ def decompose_z_matrix(z_matrix, fixed):
     given = np.sort(fixed)  # atoms that were already visited
 
     # filter out conditioned variables
-    non_given = ~np.isin(z_matrix[:, 0], given)#
+    non_given = ~np.isin(z_matrix[:, 0], given)
     z_matrix = z_matrix[non_given]
-    
-    # prepend the row index to each row in the z matrix
+    # prepend the torsion index to each torsion in the z matrix
     z_matrix = np.concatenate([np.arange(len(z_matrix))[:, None], z_matrix], axis=1)
 
     order = []  # torsion indices
     while len(z_matrix) > 0:
 
         can_be_placed_in_this_stage = np.all(np.isin(z_matrix[:, 2:], given), axis=-1)
-        #print(can_be_placed_in_this_stage)
         # torsions, where atoms 2-4 were already visited
         if (not np.any(can_be_placed_in_this_stage)) and len(z_matrix) > 0:
             raise ValueError(
@@ -78,7 +73,6 @@ def decompose_z_matrix(z_matrix, fixed):
                 f"The following atoms were not reachable from the fixed atoms: \n{z_matrix[:,1]}"
             )
 
-        #print(z_matrix[can_be_placed_in_this_stage])
         pos = z_matrix[can_be_placed_in_this_stage, 0]
         atom = z_matrix[can_be_placed_in_this_stage, 1]
 
@@ -88,13 +82,11 @@ def decompose_z_matrix(z_matrix, fixed):
         blocks.append(z_matrix[can_be_placed_in_this_stage][:, 1:])
         given = np.union1d(given, atom)
         z_matrix = z_matrix[~can_be_placed_in_this_stage]
-        #print('after tilde',z_matrix)
 
     index2atom = np.concatenate(atoms)
     atom2index = np.argsort(index2atom)
     index2order = np.concatenate(order)
-    order2index = np.argsort(index2order)
-    return blocks, index2atom, atom2index, index2order, order2index
+    return blocks, index2atom, atom2index, index2order
 
 
 def slice_initial_atoms(z_matrix):
@@ -134,12 +126,8 @@ def unnormalize_angles(angles):
 class ReferenceSystemTransformation(Flow):
     """
     Internal coordinate transformation of the reference frame set by the first three atoms.
-
     Please not that the forward transformation transforms *from* xyz coordinates *into* internal coordinates.
-
     By default output angles and torsions are normalized and fit into a (0, 1) interval.
-
-
     Parameters:
     ----------
     normalize_angles : bool
@@ -169,7 +157,6 @@ class ReferenceSystemTransformation(Flow):
         ----------
         x0, x1, x2: torch.Tensor
             xyz coordinates of the first three points
-
         Returns:
         --------
         x0: torch.Tensor
@@ -221,12 +208,10 @@ class ReferenceSystemTransformation(Flow):
         d01: torch.Tensor
         d12: torch.Tensor
         a012: torch.Tensor
-
         Returns:
         --------
         x0, x1, x2: torch.Tensor
             xyz coordinates of the first three points
-
         dlogp: torch.Tensor
             log det jacobian of the transformation
         """
@@ -268,11 +253,8 @@ class ReferenceSystemTransformation(Flow):
 class RelativeInternalCoordinateTransformation(Flow):
     """
     Internal coordinate transformation relative to a set of fixed atoms.
-
     Please not that the forward transformation transforms *from* xyz coordinates *into* internal coordinates.
-
     By default output angles and torsions are normalized and fit into a (0, 1) interval.
-
     Parameters:
     ----------
     z_matrix : Union[np.ndarray, torch.LongTensor]
@@ -285,7 +267,6 @@ class RelativeInternalCoordinateTransformation(Flow):
         numerical epsilon used to enforce manifold boundaries
     raise_warnings : bool
         raise warnings if manifold boundaries are violated
-
     Attributes
     ----------
     z_matrix : np.ndarray
@@ -308,7 +289,6 @@ class RelativeInternalCoordinateTransformation(Flow):
         atoms ids that are connected by a torsion (shape: (dim_torsions, 4))
     normalize_angles : bool
         whether this transform normalizes angles and torsions to [0,1]
-
     """
 
     @property
@@ -371,7 +351,6 @@ class RelativeInternalCoordinateTransformation(Flow):
             self._index2atom,
             self._atom2index,
             self._index2order,
-            self._order2index
         ) = decompose_z_matrix(z_matrix, fixed_atoms)
 
         self._bond_indices = self._z_matrix[:, :2]
@@ -385,12 +364,8 @@ class RelativeInternalCoordinateTransformation(Flow):
         self._raise_warnings = raise_warnings
 
     def _forward(self, x, with_pose=True, *args, **kwargs):
-        #x is a tensor with 2 dimensions, number of frames and coordinates of all 22 atoms 
-
-        #x.shape[0] gives number of frames passed to forward
 
         n_batch = x.shape[0]
-        #x.view reshapes the tensor, n_batch = frames of x, -1 to work out how many atoms, 3 for xyz for all atoms
         x = x.view(n_batch, -1, 3)
 
         # compute bonds, angles, torsions
@@ -402,13 +377,6 @@ class RelativeInternalCoordinateTransformation(Flow):
             enforce_boundaries=self._enforce_boundaries,
             raise_warnings=self._raise_warnings,
         )
-        #print('#jbonds',jbonds)
-
-        bonds_corrected = bonds[:,[1,4,5,6,10,11,12,13,16]]
-        jbonds_corrected = jbonds[:,[1,4,5,6,10,11,12,13,16]]
-
-        #print('#bonds new', bonds_corrected)
-
         angles, jangles = angle_deriv(
             x[:, self._z_matrix[:, 0]],
             x[:, self._z_matrix[:, 1]],
@@ -439,31 +407,11 @@ class RelativeInternalCoordinateTransformation(Flow):
             torsions, dlogp_t = normalize_torsions(torsions)
             dlogp += dlogp_a + dlogp_t
 
+        # compute volume change
         j = torch.stack([jbonds, jangles, jtorsions], dim=-2)
         dlogp += det3x3(j).abs().log().sum(dim=1, keepdim=True)
 
-        #compute volume change
-        print(jbonds.shape)
-        print(bonds.shape)
-        print(jangles.shape)
-        print(jtorsions.shape)
-        j = torch.stack([jbonds, jangles, jtorsions], dim=-2)
-        jnobonds = torch.stack([jangles,jtorsions],dim=-2)
-        
-        print('jshape',j.shape)
-        print('j shpae no bonds',jnobonds.shape)
-
-        detbonds = det2x2(jbonds).abs().log()
-        print('detbonds',detbonds)
-
-        print('detline just det func',det3x3(j))
-        print('detline without sum',det3x3(j).abs().log())
-        print('detline',det3x3(j).abs().log().sum(dim=1, keepdim=True))
-        print('detline no bonds',det3x3(jnobonds).abs().log().sum(dim=1, keepdim=True))
-        dlogp += det3x3(j).abs().log().sum(dim=1, keepdim=True)
-
-        return bonds_corrected, angles, torsions, x_fixed, dlogp
-        #return bonds, angles, torsions, x_fixed, dlogp
+        return bonds, angles, torsions, x_fixed, dlogp
 
     def _inverse(self, bonds, angles, torsions, x_fixed, **kwargs):
 
@@ -476,17 +424,12 @@ class RelativeInternalCoordinateTransformation(Flow):
             torsions, dlogp_t = unnormalize_torsions(torsions)
             dlogp += dlogp_a + dlogp_t
 
-        #print('x_fixed start',x_fixed)
-
         # infer dimensions from input
         n_batch = x_fixed.shape[0]
-        #print('n_batch',n_batch)
         x_fixed = x_fixed.view(n_batch, -1, 3)
-        #print('x_fixed after view', x_fixed)
         n_fixed = x_fixed.shape[-2]
-        #don't use bonds b/c constraints
-        n_conditioned = angles.shape[-1]
-        #assert angles.shape[-1] == n_conditioned
+        n_conditioned = bonds.shape[-1]
+        assert angles.shape[-1] == n_conditioned
         assert torsions.shape[-1] == n_conditioned
 
         # reconstruct points; initial points are the fixed points
@@ -496,107 +439,30 @@ class RelativeInternalCoordinateTransformation(Flow):
             device=x_fixed.device,
         )
         points[:, :n_fixed, :] = x_fixed.view(n_batch, -1, 3)
-        #print('after initialising', points)
 
         # blockwise reconstruction of points left
         current_index = n_fixed
-        # for block in self._z_blocks:
-        #     print('block:', block)
+        for block in self._z_blocks:
 
-        #     # map atoms from z matrix
-        #     # to indices in reconstruction order
-        #     ref = self._atom2index[block]
-        #     print('ref:', ref)
+            # map atoms from z matrix
+            # to indices in reconstruction order
+            ref = self._atom2index[block]
 
-        #     # slice three context points
-        #     # from the already reconstructed
-        #     # points using the indices
-        #     context = points[:, ref[:, 1:]]
-        #     p0 = context[:, :, 0]
-        #     p1 = context[:, :, 1]
-        #     p2 = context[:, :, 2]
+            # slice three context points
+            # from the already reconstructed
+            # points using the indices
+            context = points[:, ref[:, 1:]]
+            p0 = context[:, :, 0]
+            p1 = context[:, :, 1]
+            p2 = context[:, :, 2]
 
-        #     # obtain index of currently placed
-        #     # point in original z-matrix
-        #     idx = self._index2order[ref[:, 0] - len(self._fixed_atoms)]
+            # obtain index of currently placed
+            # point in original z-matrix
+            idx = self._index2order[ref[:, 0] - len(self._fixed_atoms)]
 
-        #     # get bonds, angles, torsions
-        #     # using this z-matrix index
-        #     b = bonds[:, idx, None]
-        #     a = angles[:, idx, None]
-        #     t = torsions[:, idx, None]
-
-        #     # now we have three context points
-        #     # and correct ic values to reconstruct the current point
-        #     p, J = ic2xyz_deriv(
-        #         p0,
-        #         p1,
-        #         p2,
-        #         b,
-        #         a,
-        #         t,
-        #         eps=self._eps,
-        #         enforce_boundaries=self._enforce_boundaries,
-        #         raise_warnings=self._raise_warnings,
-        #     )
-
-        #     #compute jacobian
-        #     dlogp += det3x3(J).abs().log().sum(-1)[:, None]
-
-        #     points[:, current_index : current_index + p.shape[1], :] = p
-        #     current_index += p.shape[1]
-        
-        for atom in self._index2atom[len(self._fixed_atoms):]:
-            print('atom:', atom)
-            
-            atomrow = self._z_matrix[self._index2order[current_index - len(self._fixed_atoms)]]
-            print('atomrow',atomrow)
-            ref = atomrow
-            context = points[:, ref[1:]]
-            #print('context2',context2.shape)
-            p0 = context[:,:,0]
-            p1 = context[:,:,1]
-            p2 = context[:,:,2]
-            idx = self._index2order[ref[0] - len(self._fixed_atoms)]
-            
-            
-            if len(bonds) < len(self.z_matrix):
-                #list of indices for CH bonds
-                if atom in [0, 2, 3 ,11 ,12, 13, 19, 20,21]:
-                    #print('CHbond')
-                    b = torch.full((3,1), 1.09,
-                    dtype=x_fixed.dtype,
-                    device=x_fixed.device)
-                    print(b)
-                elif atom == 1:    
-                    b = bonds[:, 0, None]
-                    print(b)
-                elif atom == 4:    
-                    b = bonds[:, 1, None]
-                    print(b)
-                elif atom == 5:    
-                    b = bonds[:, 2, None]
-                    print(b)
-                elif atom == 7:    
-                    b = bonds[:, 3, None]
-                    print(b)
-                elif atom == 15:    
-                    b = bonds[:, 4, None]
-                    print(b)
-                elif atom == 16:    
-                    b = bonds[:, 5, None]
-                    print(b)
-                elif atom == 17:    
-                    b = bonds[:, 6, None]
-                    print(b)
-                elif atom == 18:    
-                    b = bonds[:, 7, None]
-                    print(b)
-                else:
-                    print('bond for atom not found')
-            else:
-                b = bonds[:, idx, None]
-
+            # get bonds, angles, torsions
+            # using this z-matrix index
+            b = bonds[:, idx, None]
             a = angles[:, idx, None]
             t = torsions[:, idx, None]
 
@@ -615,105 +481,24 @@ class RelativeInternalCoordinateTransformation(Flow):
             )
 
             # compute jacobian
-            dlogp += det3x3(J).abs().log()[:, None]
+            dlogp += det3x3(J).abs().log().sum(-1)[:, None]
 
             # update list of reconstructed points
-            points[:, current_index, :] = p
-            current_index += 1
+            points[:, current_index : current_index + p.shape[1], :] = p
+            current_index += p.shape[1]
 
         # finally make sure that atoms are sorted
         # from reconstruction order to original order
         points = points[:, self._atom2index]
-        
-
-        #run the process atom by atom rather than in blocks
-        # for atom in self._index2atom[len(self._fixed_atoms):]:
-        #     #print('atom:', atom)
-            
-        #     atomrow = self._z_matrix[self._index2order[current_index - len(self._fixed_atoms)]]
-        #     #print('atomrow',atomrow)
-        #     ref = self._atom2index[atomrow]
-        #     #print('ref', ref)
-        #     context = points[:, ref[1:]]
-        #     p0 = context[:,:,0]
-        #     p1 = context[:,:,1]
-        #     p2 = context[:,:,2]
-        #     idx = self._index2order[ref[0] - len(self._fixed_atoms)]
-                       
-            
-        #     #list of indices for CH bonds
-        #     if atom in [0, 2, 3 ,11 ,12, 13, 19, 20]:
-        #         #print('CHbond')
-        #         b = torch.full(bonds[:,0,None].shape, 1.09,
-        #         dtype=x_fixed.dtype,
-        #         device=x_fixed.device)
-        #         #print(b)
-        #     elif atom == 1:    
-        #         b = bonds[:, 0, None]
-        #         #print(b)
-        #     elif atom == 4:    
-        #         b = bonds[:, 1, None]
-        #         #print(b)
-        #     elif atom == 5:    
-        #         b = bonds[:, 2, None]
-        #         #print(b)
-        #     elif atom == 7:    
-        #         b = bonds[:, 3, None]
-        #         #print(b)
-        #     elif atom == 15:    
-        #         b = bonds[:, 4, None]
-        #         #print(b)
-        #     elif atom == 16:    
-        #         b = bonds[:, 5, None]
-        #         #print(b)
-        #     elif atom == 17:    
-        #         b = bonds[:, 6, None]
-        #         #print(b)
-        #     elif atom == 18:    
-        #         b = bonds[:, 7, None]
-        #         #print(b)
-        #     elif atom == 21:
-        #         b = bonds[:, 8, None]
-        #         #print(b)
-        #     else:
-        #         print('bond for atom not found')
-            
-
-            # a = angles[:, idx, None]
-            # t = torsions[:, idx, None]
-            # p, J = ic2xyz_deriv(
-            #     p0,
-            #     p1,
-            #     p2,
-            #     b,
-            #     a,
-            #     t,
-            #     eps=self._eps,
-            #     enforce_boundaries=self._enforce_boundaries,
-            #     raise_warnings=self._raise_warnings,
-            # )
-
-            # # compute jacobian
-            # dlogp += det3x3(J).abs().log()[:, None]
-
-            # # update list of reconstructed points
-            # points[:, current_index, :] = p
-            # #print('updated points', points)
-            # current_index += 1
 
         return points.view(n_batch, -1), dlogp
-        
 
 
 class GlobalInternalCoordinateTransformation(Flow):
     """
     Global internal coordinate transformation.
-
     Please note that the forward transformation transforms *from* xyz coordinates *into* internal coordinates.
-
     By default output angles and torsions are normalized and fit into a (0, 1) interval.
-
-
     Parameters
     ----------
     z_matrix : Union[np.ndarray, torch.LongTensor]
@@ -724,7 +509,6 @@ class GlobalInternalCoordinateTransformation(Flow):
         numerical epsilon used to enforce manifold boundaries
     raise_warnings : bool
         raise warnings if manifold boundaries are violated
-
     Attributes
     ----------
     z_matrix : np.ndarray
@@ -829,7 +613,6 @@ class GlobalInternalCoordinateTransformation(Flow):
         ----------
         x: torch.Tensor
             xyz coordinates
-
         Returns:
         --------
         bonds: torch.Tensor
@@ -880,7 +663,6 @@ class GlobalInternalCoordinateTransformation(Flow):
         R: torch.Tensor
             global rotation of the system - 3-vector of Euler angles
             see ReferenceSystemTransformation for more details.
-
         Returns:
         --------
         x: torch.Tensor
@@ -912,13 +694,9 @@ class GlobalInternalCoordinateTransformation(Flow):
 class MixedCoordinateTransformation(Flow):
     """
     Mixed coordinate transformation.
-
     This combines an relative coordinate transformation with a whitening transformation on the fixed atoms.
-
     Please note that the forward transformation transforms *from* xyz coordinates *into* internal coordinates.
-
     By default output angles and torsions are normalized and fit into a (0, 1) interval.
-
     Parameters
     ----------
     data : torch.Tensor
@@ -935,7 +713,6 @@ class MixedCoordinateTransformation(Flow):
         numerical epsilon used to enforce manifold boundaries
     raise_warnings : bool
         raise warnings if manifold boundaries are violated
-
     Attributes
     ----------
     z_matrix : np.ndarray
@@ -1034,7 +811,6 @@ class MixedCoordinateTransformation(Flow):
         -----------
         x: torch.Tensor
             xyz coordinates
-
         Returns:
         --------
         bonds: torch.Tensor
@@ -1061,7 +837,6 @@ class MixedCoordinateTransformation(Flow):
         torsions: torch.Tensor
         z_fixed: torch.Tensor
             whitened fixed atom coordinates
-
         Returns:
         --------
         x: torch.Tensor
