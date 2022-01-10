@@ -4,6 +4,7 @@ from typing import Union, Optional
 
 from ..base import Flow
 from .ic_helper import (
+    det2x2,
     dist_deriv,
     angle_deriv,
     torsion_deriv,
@@ -401,6 +402,13 @@ class RelativeInternalCoordinateTransformation(Flow):
             enforce_boundaries=self._enforce_boundaries,
             raise_warnings=self._raise_warnings,
         )
+        #print('#jbonds',jbonds)
+
+        bonds_corrected = bonds[:,[1,4,5,6,10,11,12,13,16]]
+        jbonds_corrected = jbonds[:,[1,4,5,6,10,11,12,13,16]]
+
+        #print('#bonds new', bonds_corrected)
+
         angles, jangles = angle_deriv(
             x[:, self._z_matrix[:, 0]],
             x[:, self._z_matrix[:, 1]],
@@ -431,11 +439,31 @@ class RelativeInternalCoordinateTransformation(Flow):
             torsions, dlogp_t = normalize_torsions(torsions)
             dlogp += dlogp_a + dlogp_t
 
-        # compute volume change
         j = torch.stack([jbonds, jangles, jtorsions], dim=-2)
         dlogp += det3x3(j).abs().log().sum(dim=1, keepdim=True)
 
-        return bonds, angles, torsions, x_fixed, dlogp
+        #compute volume change
+        print(jbonds.shape)
+        print(bonds.shape)
+        print(jangles.shape)
+        print(jtorsions.shape)
+        j = torch.stack([jbonds, jangles, jtorsions], dim=-2)
+        jnobonds = torch.stack([jangles,jtorsions],dim=-2)
+        
+        print('jshape',j.shape)
+        print('j shpae no bonds',jnobonds.shape)
+
+        detbonds = det2x2(jbonds).abs().log()
+        print('detbonds',detbonds)
+
+        print('detline just det func',det3x3(j))
+        print('detline without sum',det3x3(j).abs().log())
+        print('detline',det3x3(j).abs().log().sum(dim=1, keepdim=True))
+        print('detline no bonds',det3x3(jnobonds).abs().log().sum(dim=1, keepdim=True))
+        dlogp += det3x3(j).abs().log().sum(dim=1, keepdim=True)
+
+        return bonds_corrected, angles, torsions, x_fixed, dlogp
+        #return bonds, angles, torsions, x_fixed, dlogp
 
     def _inverse(self, bonds, angles, torsions, x_fixed, **kwargs):
 
@@ -448,10 +476,15 @@ class RelativeInternalCoordinateTransformation(Flow):
             torsions, dlogp_t = unnormalize_torsions(torsions)
             dlogp += dlogp_a + dlogp_t
 
+        #print('x_fixed start',x_fixed)
+
         # infer dimensions from input
         n_batch = x_fixed.shape[0]
+        #print('n_batch',n_batch)
         x_fixed = x_fixed.view(n_batch, -1, 3)
+        #print('x_fixed after view', x_fixed)
         n_fixed = x_fixed.shape[-2]
+        #don't use bonds b/c constraints
         n_conditioned = angles.shape[-1]
         #assert angles.shape[-1] == n_conditioned
         assert torsions.shape[-1] == n_conditioned
@@ -463,6 +496,7 @@ class RelativeInternalCoordinateTransformation(Flow):
             device=x_fixed.device,
         )
         points[:, :n_fixed, :] = x_fixed.view(n_batch, -1, 3)
+        #print('after initialising', points)
 
         # blockwise reconstruction of points left
         current_index = n_fixed
@@ -565,6 +599,9 @@ class RelativeInternalCoordinateTransformation(Flow):
 
             a = angles[:, idx, None]
             t = torsions[:, idx, None]
+
+            # now we have three context points
+            # and correct ic values to reconstruct the current point
             p, J = ic2xyz_deriv(
                 p0,
                 p1,
@@ -587,6 +624,82 @@ class RelativeInternalCoordinateTransformation(Flow):
         # finally make sure that atoms are sorted
         # from reconstruction order to original order
         points = points[:, self._atom2index]
+        
+
+        #run the process atom by atom rather than in blocks
+        # for atom in self._index2atom[len(self._fixed_atoms):]:
+        #     #print('atom:', atom)
+            
+        #     atomrow = self._z_matrix[self._index2order[current_index - len(self._fixed_atoms)]]
+        #     #print('atomrow',atomrow)
+        #     ref = self._atom2index[atomrow]
+        #     #print('ref', ref)
+        #     context = points[:, ref[1:]]
+        #     p0 = context[:,:,0]
+        #     p1 = context[:,:,1]
+        #     p2 = context[:,:,2]
+        #     idx = self._index2order[ref[0] - len(self._fixed_atoms)]
+                       
+            
+        #     #list of indices for CH bonds
+        #     if atom in [0, 2, 3 ,11 ,12, 13, 19, 20]:
+        #         #print('CHbond')
+        #         b = torch.full(bonds[:,0,None].shape, 1.09,
+        #         dtype=x_fixed.dtype,
+        #         device=x_fixed.device)
+        #         #print(b)
+        #     elif atom == 1:    
+        #         b = bonds[:, 0, None]
+        #         #print(b)
+        #     elif atom == 4:    
+        #         b = bonds[:, 1, None]
+        #         #print(b)
+        #     elif atom == 5:    
+        #         b = bonds[:, 2, None]
+        #         #print(b)
+        #     elif atom == 7:    
+        #         b = bonds[:, 3, None]
+        #         #print(b)
+        #     elif atom == 15:    
+        #         b = bonds[:, 4, None]
+        #         #print(b)
+        #     elif atom == 16:    
+        #         b = bonds[:, 5, None]
+        #         #print(b)
+        #     elif atom == 17:    
+        #         b = bonds[:, 6, None]
+        #         #print(b)
+        #     elif atom == 18:    
+        #         b = bonds[:, 7, None]
+        #         #print(b)
+        #     elif atom == 21:
+        #         b = bonds[:, 8, None]
+        #         #print(b)
+        #     else:
+        #         print('bond for atom not found')
+            
+
+            # a = angles[:, idx, None]
+            # t = torsions[:, idx, None]
+            # p, J = ic2xyz_deriv(
+            #     p0,
+            #     p1,
+            #     p2,
+            #     b,
+            #     a,
+            #     t,
+            #     eps=self._eps,
+            #     enforce_boundaries=self._enforce_boundaries,
+            #     raise_warnings=self._raise_warnings,
+            # )
+
+            # # compute jacobian
+            # dlogp += det3x3(J).abs().log()[:, None]
+
+            # # update list of reconstructed points
+            # points[:, current_index, :] = p
+            # #print('updated points', points)
+            # current_index += 1
 
         return points.view(n_batch, -1), dlogp
         
