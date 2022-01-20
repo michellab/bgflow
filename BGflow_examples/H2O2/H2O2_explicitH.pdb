@@ -1,0 +1,18 @@
+HEADER    PROTEIN                                 09-DEC-21   NONE
+TITLE     NULL                                                        
+COMPND    MOLECULE: PEO                                               
+SOURCE    NULL                                                        
+KEYWDS    NULL                                                        
+EXPDTA    NULL                                                        
+AUTHOR    Marvin                                                      
+REVDAT   1   09-DEC-21         0                                  
+HETATM    1  O   UNK     0      47.411  41.524  13.051  0.00  0.00           O+0
+HETATM    2  O   UNK     0      46.878  41.592  11.921  0.00  0.00           O+0
+HETATM    3  H   UNK     0      48.356  41.507  12.955  0.00  0.00           H+0
+HETATM    4  H   UNK     0      45.933  41.609  12.017  0.00  0.00           H+0
+CONECT    1    2    3                                                       
+CONECT    2    1    4                                                       
+CONECT    3    1                                                            
+CONECT    4    2                                                            
+MASTER        0    0    0    0    0    0    0    0    4    0    6    0
+END
