@@ -1,0 +1,57 @@
+HEADER                                                                          
+TITLE     pro                                                                   
+SEQRES   1 A    3  ACE PRO NME                                                  
+ATOM      1  C   ACE A  30      46.612  -5.037  10.469  1.00  0.00           C  
+ATOM      2  O   ACE A  30      46.949  -5.075   9.293  1.00  0.00           O  
+ATOM      3  CH3 ACE A  30      47.639  -4.938  11.577  1.00  0.00           C  
+ATOM      4 HH32 ACE A  30      48.553  -5.099  11.205  1.00  0.00           H  
+ATOM      5 HH33 ACE A  30      47.610  -4.025  11.984  1.00  0.00           H  
+ATOM      6 HH31 ACE A  30      47.433  -5.624  12.275  1.00  0.00           H  
+ATOM      7  N   PRO A  31      45.335  -5.072  10.898  1.00 20.02           N  
+ATOM      8  CA  PRO A  31      44.218  -4.924   9.960  1.00 21.47           C  
+ATOM      9  C   PRO A  31      43.535  -3.586  10.106  1.00 25.86           C  
+ATOM     10  O   PRO A  31      43.866  -2.776  10.942  1.00 25.97           O  
+ATOM     11  CB  PRO A  31      43.351  -6.046  10.547  1.00 20.69           C  
+ATOM     12  CG  PRO A  31      43.519  -5.926  12.070  1.00 18.09           C  
+ATOM     13  CD  PRO A  31      44.928  -5.341  12.287  1.00 20.76           C  
+ATOM     14  HA  PRO A  31      44.440  -4.971   8.986  1.00 21.47           H  
+ATOM     15  HB2 PRO A  31      42.393  -5.925  10.286  1.00 20.69           H  
+ATOM     16  HB3 PRO A  31      43.665  -6.940  10.227  1.00 20.69           H  
+ATOM     17  HG2 PRO A  31      42.823  -5.318  12.453  1.00 18.09           H  
+ATOM     18  HG3 PRO A  31      43.441  -6.823  12.504  1.00 18.09           H  
+ATOM     19  HD2 PRO A  31      45.538  -5.998  12.730  1.00 20.76           H  
+ATOM     20  HD3 PRO A  31      44.900  -4.504  12.833  1.00 20.76           H  
+ATOM     21  N   NME A  32      42.457  -3.267   9.185  1.00  0.00           N  
+ATOM     22  CH3 NME A  32      41.929  -1.900   9.181  1.00  0.00           C  
+ATOM     23 HH31 NME A  32      41.569  -1.675  10.086  1.00  0.00           H  
+ATOM     24 HH32 NME A  32      42.660  -1.256   8.953  1.00  0.00           H  
+ATOM     25 HH33 NME A  32      41.199  -1.835   8.501  1.00  0.00           H  
+ATOM     26  H   NME A  32      42.085  -3.962   8.570  1.00  0.00           H  
+CONECT    1    2    3    7                                                      
+CONECT    2    1                                                                
+CONECT    3    1    4    5    6                                                 
+CONECT    4    3                                                                
+CONECT    5    3                                                                
+CONECT    6    3                                                                
+CONECT    7    1    8   13                                                      
+CONECT    8    7    9   11   14                                                 
+CONECT    9    8   10   21                                                      
+CONECT   10    9                                                                
+CONECT   11    8   12   15   16                                                 
+CONECT   12   11   13   17   18                                                 
+CONECT   13    7   12   19   20                                                 
+CONECT   14    8                                                                
+CONECT   15   11                                                                
+CONECT   16   11                                                                
+CONECT   17   12                                                                
+CONECT   18   12                                                                
+CONECT   19   13                                                                
+CONECT   20   13                                                                
+CONECT   21    9   22   26                                                      
+CONECT   22   21   23   24   25                                                 
+CONECT   23   22                                                                
+CONECT   24   22                                                                
+CONECT   25   22                                                                
+CONECT   26   21                                                                
+MASTER        0    0    0    0    0    0    0    0   26    0   26    1          
+END                                                                             
