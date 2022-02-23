@@ -1,0 +1,4 @@
+1000.0 K
+Collision rate:1.0 /ps
+Timestep: 4.0 fs
+Report every 2500 steps

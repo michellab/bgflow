@@ -26,12 +26,12 @@ platform = openmm.Platform.getPlatform(2)
 # xml_file.write(xml)
 # xml_file.close()
 
-temperature = 3000.0 * unit.kelvin
+temperature = 1000.0 * unit.kelvin
 collision_rate = 1.0 / unit.picosecond
 timestep = 1.0 * unit.femtosecond
 reportInterval = 2500
 steps = 5E+8
-fname = '3000K'
+fname = '1000K'
 #time = (steps*timestep).value_in_unit(unit.nanosecond)
 parametersdict = {'Collision rate':collision_rate,'Temperature':temperature,'Timestep':timestep,'Report Interval':reportInterval}
 import pickle
@@ -53,8 +53,15 @@ simulation.context.setVelocitiesToTemperature(temperature)
 
 simulation.reporters.append(app.StateDataReporter(stdout, reportInterval=reportInterval*10, step=True, potentialEnergy=True,temperature=True))
 simulation.reporters.append(app.DCDReporter(f'{fname}.dcd',reportInterval))
-#h5_reporter = reporters.HDF5Reporter('output.h5',reportInterval)
-#simulation.reporters.append(h5_reporter)
+simulation.reporters.append(openmm.app.StateDataReporter(
+    f'{fname}.txt', 
+    reportInterval=reportInterval, 
+    step=True, 
+    potentialEnergy=True,
+    kineticEnergy = True,
+    totalEnergy = True,
+    temperature=True,
+))
 
 simulation.step(steps)
-#h5_reporter.close()
+
