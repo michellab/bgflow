@@ -4,7 +4,8 @@ To reproduce the coupled scheme, there are 3 stages:
 2. Train a Boltzmann generator 
 3. Run the coupled scheme
 
-Scripts for the first two stages are inside the Alanine_dipeptide and proline folders
+Scripts for the first two stages are inside the Alanine_dipeptide and proline folders. All scripts should run within a conda environment (bgflowApril.yml) apart from breakdown by energy component (Decomposing_energies.ipynb) which require OpenMM7.7 (openmm7.7April.yml)
+
 ## Notebooks
 coupled_BGandMD_ala2.ipynb: Coupled sampling scheme for alanine dipeptide - requires trained generator (Alanine_dipeptide/alanine_dipeptide_basics.ipynb)\
 coupled_BGandMD_proline.ipynb: Coupled sampling scheme for capped proline - requires trained generator (proline/proline_BG.ipynb)\
