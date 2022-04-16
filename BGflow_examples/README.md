@@ -6,6 +6,6 @@ Decomposing_energies.ipynb: Plotting script for breakdown by energy component\
 plotting_energies.ipynb: Plotting script for energy distributions from trajectory files\
 plotting_probabilities.ipynb: Plotting script for the acceptance probability breakdown from the coupled scheme\
 Ramachandranplot.ipynb: Plotting script for Ramachandran plots\
-VMDhistograms.ipynb: Plotting script for internal coordinate distributions of trajectories\
+VMDhistograms.ipynb: Plotting script for internal coordinate distributions of trajectories
 
 Coupled scheme, Boltzmann generator and MD simulation scripts also have .py files
