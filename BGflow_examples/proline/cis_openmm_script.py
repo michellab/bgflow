@@ -1,22 +1,22 @@
-import openmm
-from openmm import unit
-from openmm import app
+from simtk import unit, openmm
+from simtk.openmm import app
+import numpy as np
+from sys import stdout
+from openmmtools import integrators
 import numpy as np
 
 from sys import stdout
 import mdtraj as md
 #from openmmtools import integrators
 
-ff = app.ForceField('amber99sbildn.xml',"amber96_obc.xml")
-pdb = app.PDBFile('cis_pro.pdb')
 
-system = ff.createSystem(
-    topology=pdb.getTopology(), 
-    removeCMMotion=True,
-    nonbondedMethod=app.NoCutoff,
-    constraints=app.HBonds, 
-    rigidWater=True
-    )
+pdb = app.PDBFile('cis_pro.pdb')
+# topology = pdb.getTopology()
+# positions = pdb.getPositions()
+
+with open('noconstraints_xmlsystem.txt') as f:
+    xml = f.read()
+system = openmm.XmlSerializer.deserialize(xml)
 
 ## creates openmm system for passing to bg to calculate energies
 
@@ -25,12 +25,12 @@ system = ff.createSystem(
 # xml_file.write(xml)
 # xml_file.close()
 
-temperature = 3000.0 * unit.kelvin
+temperature = 1000.0 * unit.kelvin
 collision_rate = 1.0 / unit.picosecond
 timestep = 1.0 * unit.femtosecond
-reportInterval = 2000
-steps = 5E+8
-fname = 'cis_pro_3000K_long'
+reportInterval = 1000
+steps = 1E+8
+fname = 'pro_1000K_noconstr'
 #time = (steps*timestep).value_in_unit(unit.nanosecond)
 parametersdict = {'Collision rate':collision_rate,'Temperature':temperature,'Timestep':timestep,'Report Interval':reportInterval}
 import pickle
