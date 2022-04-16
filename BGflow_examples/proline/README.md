@@ -9,4 +9,4 @@ pro_openmm.ipynb: Notebook to run implicit solvent MD of capped proline\
 proline_BG.ipynb: Notebook for training a BG - requires a MD training dataset (pro_openmm.ipynb)\
 trans_openmm_script.py: Python script to run implicit solvent MD of capped proline - starting from trans conformation\
 trans_pro_reindexed.pdb: PDB file of trans capped proline, atom indexing matches cis PDB file\
-trans_pro.pdb: PDB file of trans capped proline, atom indexing DOES NOT match cis PDB file - topologies don't match\
+trans_pro.pdb: PDB file of trans capped proline, atom indexing DOES NOT match cis PDB file - topologies don't match
