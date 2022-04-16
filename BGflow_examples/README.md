@@ -8,7 +8,7 @@ Scripts for the first two stages are inside the Alanine_dipeptide and proline fo
 ## Notebooks
 coupled_BGandMD_ala2.ipynb: Coupled sampling scheme for alanine dipeptide - requires trained generator (Alanine_dipeptide/alanine_dipeptide_basics.ipynb)\
 coupled_BGandMD_proline.ipynb: Coupled sampling scheme for capped proline - requires trained generator (proline/proline_BG.ipynb)\
-Decomposing_energies.ipynb: Plotting script for breakdown by energy component\
+Decomposing_energies.ipynb: Plotting script for breakdown by energy component - Requires OpenMM 7.7 use alternative environment file\
 plotting_energies.ipynb: Plotting script for energy distributions from trajectory files\
 plotting_probabilities.ipynb: Plotting script for the acceptance probability breakdown from the coupled scheme\
 Ramachandranplot.ipynb: Plotting script for Ramachandran plots\
