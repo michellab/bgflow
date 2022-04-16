@@ -6,8 +6,8 @@ To reproduce the coupled scheme, there are 3 stages:
 
 Scripts for the first two stages are inside the Alanine_dipeptide and proline folders
 ## Notebooks
-coupled_BGandMD_ala2.ipynb: Coupled sampling scheme for alanine dipeptide - requires trained generator (Alanine_dipeptide/Ala2openmm.ipynb)\
-coupled_BGandMD_proline.ipynb: Coupled sampling scheme for capped proline - requires trained generator (proline/pro_openmm.ipynb)\
+coupled_BGandMD_ala2.ipynb: Coupled sampling scheme for alanine dipeptide - requires trained generator (Alanine_dipeptide/alanine_dipeptide_basics.ipynb)\
+coupled_BGandMD_proline.ipynb: Coupled sampling scheme for capped proline - requires trained generator (proline/proline_BG.ipynb)\
 Decomposing_energies.ipynb: Plotting script for breakdown by energy component\
 plotting_energies.ipynb: Plotting script for energy distributions from trajectory files\
 plotting_probabilities.ipynb: Plotting script for the acceptance probability breakdown from the coupled scheme\
