@@ -1,8 +1,9 @@
 # Folder for scripts using the bgflow repository to couple Boltzmann generators with molecular dynamics
-To reproduce the coupled scheme, there are 3 stages:\
+To reproduce the coupled scheme, there are 3 stages:
 1. Create a training dataset - MD simulation with openmm
 2. Train a Boltzmann generator 
 3. Run the coupled scheme
+
 Scripts for the first two stages are inside the Alanine_dipeptide and proline folders
 ## Notebooks
 coupled_BGandMD_ala2.ipynb: Coupled sampling scheme for alanine dipeptide - requires trained generator (Alanine_dipeptide/Ala2openmm.ipynb)\
